@@ -1,9 +1,9 @@
 
 .idea/misc.xml
 
-model/__pycache__/user.cpython-310.pyc
+db_elems/__pycache__/user.cpython-310.pyc
 
-model/__pycache__/database.cpython-310.pyc
+db_elems/__pycache__/database.cpython-310.pyc
 
 .idea/modules.xml
 
@@ -12,3 +12,5 @@ model/__pycache__/database.cpython-310.pyc
 .idea/inspectionProfiles/profiles_settings.xml
 
 .idea/database.iml
+
+*.pyc
