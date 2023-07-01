@@ -10,7 +10,8 @@ class Messages(Base):
     text = Column(Text)
     time = Column(DateTime)
     user_id = Column(Integer, ForeignKey("Users.id"))
-    conversation_id = Column(Integer, ForeignKey("LLMsConversation.id"))
+    llm_conversation_id = Column(Integer, ForeignKey("LLMsConversation.id"))
 
     user = relationship("Users", back_populates="user_message")
     llms_conversation = relationship("LLMsConversation", back_populates="message")
+    regenerated_message = relationship("RegeneratedMessage", back_populates="message")

@@ -9,4 +9,5 @@ class UserToken(Base):
     user_id = Column(Integer, ForeignKey("Users.id"))
     count = Column(Integer)
     last_update = Column(DateTime)
+
     user = relationship("User", back_populates="user_token")
