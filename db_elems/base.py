@@ -1,6 +1,6 @@
 import sqlalchemy
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
-from model.model_enum import ModelEnum
+
 
 
 engine = sqlalchemy.create_engine('sqlite:///multigpt.db', echo=True)
