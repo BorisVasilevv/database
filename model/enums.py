@@ -13,8 +13,8 @@ class RoleEnum(enum.Enum):
 
 class SubscriptionLevelEnum(enum.Enum):
     free = "standard"
+    basic = "basic"
     advanced = "advanced"
-    max = "max"
 
 
 class AuthorEnum(enum.Enum):
