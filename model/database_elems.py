@@ -1,4 +1,5 @@
 import datetime
+from typing import Any
 
 import sqlalchemy
 from sqlalchemy.orm import DeclarativeBase, relationship, sessionmaker
@@ -15,30 +16,87 @@ class Base(DeclarativeBase):
         cls.metadata.create_all(bind=some_engine)
 
 
-class UserToken(Base):
-    __tablename__ = "UserToken"
+class Conversation(Base):
+    __tablename__ = "Conversations"
     id = Column(Integer, Identity(start=1, always=True), primary_key=True)
     user_id = Column(Integer, ForeignKey("Users.id"))
-    count = Column(Integer)
-    last_update = Column(DateTime)
+    name = Column(String)
+    llm_id = Column(Integer, ForeignKey("UserLLMs.id"))
 
-    user = relationship("User", back_populates="user_token")
+    user = relationship("User", back_populates="conversation")
+    user_llm = relationship("UserLLM", back_populates="conversation")
+    message = relationship("Message", back_populates="conversation")
 
-    def get_info(self):
-        result = {
+    def __init__(self,  user_id: int, name: str, llm_id: int, **kw: Any):
+        super().__init__(**kw)
+        self.user_id = user_id
+        self.name = name
+        self.llm_id = llm_id
+
+    def get_simple_dict(self) -> dict:
+        return {
             "id": self.id,
-            "count": self.count,
-            "last_update": self.last_update
+            "name": self.name
         }
 
-        with sessionmaker(bind=engine) as session:
-            user = session.get(User, self.id)
 
-        if user is not None:
-            result["user_id"] = user.get_info()
-        else:
-            result["user_id"] = None
-        return result
+class FilePart(Base):
+    __tablename__ = "FileParts"
+    id = Column(Integer, Identity(start=1, always=True), primary_key=True)
+    project_id = Column(Integer, ForeignKey("Projects.id"))
+    part = Column(Text)
+    is_used = Column(Boolean)
+
+    project = relationship("Project", back_populates="file_part")
+
+    def get_simple_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "part": self.part,
+            "is_used": self.is_used
+        }
+
+
+class LLM(Base):
+    __tablename__ = "LLMs"
+
+    id = Column(Integer, Identity(start=1, always=True), primary_key=True)
+    model = Column(Enum(ModelEnum))
+
+    user_llm = relationship("UserLLM", back_populates="llm")
+    project_llm = relationship("ProjectLLM", back_populates="llm")
+
+    def get_simple_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "model": self.model
+        }
+
+
+class Message(Base):
+    __tablename__ = "Messages"
+    id = Column(Integer, Identity(start=1, always=True), primary_key=True)
+    question = Column(Text)
+    answer = Column(Text)
+    time = Column(DateTime)
+    conversation_id = Column(Integer, ForeignKey("Conversations.id"))
+
+    conversation = relationship("Conversation", back_populates="message")
+
+    def __init__(self, question: str, answer: str, conversation_id: int, **kw: Any):
+        super().__init__(**kw)
+        self.question = question
+        self.answer = answer
+        self.time = datetime.datetime.now()
+        self.conversation_id = conversation_id
+
+    def get_simple_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "question": self.question,
+            "answer": self.answer,
+            "time": self.time
+        }
 
 
 class Project(Base):
@@ -55,146 +113,20 @@ class Project(Base):
     result_data = relationship("ResultData", back_populates="project")
     project_llm = relationship("ProjectLLM", back_populates="project")
 
-    def get_info(self):
-        result = {
+    def __init__(self, user_id: int,  name: str, mimetype: str, file: bytes, **kw: Any):
+        super().__init__(**kw)
+        self.user_id = user_id
+        self.name = name
+        self.mimetype = mimetype
+        self.file = file
+
+    def get_simple_dict(self) -> dict:
+        return {
             "id": self.id,
             "name": self.name,
             "mimetype": self.mimetype,
             "file": self.file
         }
-
-        with sessionmaker(bind=engine) as session:
-            user = session.get(User, self.user_id)
-            pr_llm = session.get(ProjectLLM, self.model_id)
-        if user is not None:
-            result["user_id"] = user.get_info()
-        if pr_llm is not None:
-            result["model_id"] = pr_llm.get_info()
-
-        return result
-
-
-class FilePart(Base):
-    __tablename__ = "FileParts"
-    id = Column(Integer, Identity(start=1, always=True), primary_key=True)
-    project_id = Column(Integer, ForeignKey("Projects.id"))
-    part = Column(Text)
-    used = Column(Boolean)
-
-    project = relationship("Project", back_populates="file_part")
-
-    def get_info(self):
-        result = {
-            "id": self.id,
-            "part": self.part,
-            "used": self.used
-        }
-
-        with sessionmaker(bind=engine) as session:
-            project = session.get(Project, self.project_id)
-        if project is not None:
-            result["project_id"] = project.get_info()
-
-        return result
-
-
-class ResultData(Base):
-    __tablename__ = "ResultData"
-    id = Column(Integer, Identity(start=1, always=True), primary_key=True)
-    project_id = Column(ForeignKey("Projects.id"))
-    data = Column(Text)
-
-    project = relationship("Project", back_populates="result_data")
-
-    def get_info(self):
-        result = {
-            "id": self.id,
-            "data": self.data
-        }
-
-        with sessionmaker(bind=engine) as session:
-            project = session.get(Project, self.project_id)
-        if project is not None:
-            result["project_id"] = project.get_info()
-
-        return result
-
-
-class User(Base):
-    __tablename__ = "Users"
-
-    id = Column(Integer, primary_key=True)
-    username = Column(String)
-    registration_date = Column(DateTime)
-    subscription = Column(Enum(SubscriptionLevelEnum))
-    default_model_id = Column(Integer, ForeignKey("UserLLMs.id"))
-
-    user_token = relationship("UserToken", back_populates="user")
-    project = relationship("Project", back_populates="user")
-    user_llm = relationship("UserLLM", back_populates="user")
-    conversation = relationship("Conversation", back_populates="user")
-
-    def get_info(self):
-        result = {
-            "id": self.id,
-            "username": self.username,
-            "registration_date": self.registration_date,
-            "subscription": self.subscription,
-        }
-
-        with sessionmaker(bind=engine) as session:
-            user_llm = session.get(UserLLM, self.default_model_id)
-
-        if user_llm is not None:
-            user_llm_dict = {
-                "id": user_llm.id,
-                "user_id": user_llm.user_id,
-                "name": user_llm.name,
-                "system_name": user_llm.system_name,
-                "prompt": user_llm.prompt
-            }
-
-            with sessionmaker(bind=engine) as session:
-                llm = session.get(LLM, user_llm.base_model_id)
-            if llm is not None:
-                user_llm_dict["base_model_id"] = llm.get_info()
-
-            result["default_model_id"] = user_llm_dict
-
-        return result
-
-
-class UserLLM(Base):
-    __tablename__ = "UserLLMs"
-    id = Column(Integer, Identity(start=1, always=True), primary_key=True)
-    user_id = Column(Integer, ForeignKey("Users.id"))
-    base_model_id = Column(Integer, ForeignKey("LLMs.id"))
-    name = Column(String)
-    system_name = Column(String)
-    prompt = Column(Text)
-
-    user = relationship("User", back_populates="user_llm")
-    conversation = relationship("Conversation", back_populates="user_llm")
-    llm = relationship("LLM", back_populates="user_llm")
-
-    def get_info(self):
-        result = {
-            "id": self.id,
-            "name": self.name,
-            "system_name": self.system_name,
-            "prompt": self.prompt
-        }
-
-        with sessionmaker(bind=engine) as session:
-            user_llm = session.get(User, self.user_id)
-            llm = session.get(LLM, user_llm.base_model_id)
-
-        if user_llm is not None:
-            result["user_id"] = user_llm.get_info()
-        if llm is not None:
-            result["base_model_id"] = llm.get_info()
-
-        return result
 
 
 class ProjectLLM(Base):
@@ -207,86 +139,133 @@ class ProjectLLM(Base):
     project = relationship("Project", back_populates="project_llm")
     llm = relationship("LLM", back_populates="project_llm")
 
-    def get_info(self):
-        result = {
+    def get_simple_dict(self) -> dict:
+        return {
             "id": self.id,
             "system_name": self.system_name,
             "prompt": self.prompt
         }
 
-        with sessionmaker(bind=engine) as session:
-            llm = session.get(LLM, self.model_id)
-        if llm is not None:
-            result["model_id"] = llm.get_info()
 
-        return result
+class ResultData(Base):
+    __tablename__ = "ResultData"
+    id = Column(Integer, Identity(start=1, always=True), primary_key=True)
+    project_id = Column(ForeignKey("Projects.id"))
+    data = Column(Text)
+
+    project = relationship("Project", back_populates="result_data")
+
+    def get_simple_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "data": self.data
+        }
 
 
-class Conversation(Base):
-    __tablename__ = "Conversations"
+class SubscriptionType(Base):
+    __tablename__ = "SubscriptionTypes"
+    id = Column(Integer, Identity(start=1, always=True), primary_key=True)
+    name = Column(Enum(SubscriptionLevelEnum))
+    limit = Column(Integer)
+
+    user = relationship("User", back_populates="subscription_type")
+
+    def __init__(self, name: SubscriptionLevelEnum, limit: int, **kw: Any):
+        super().__init__(**kw)
+        self.name = name
+        self.limit = limit
+
+    def get_simple_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "limit": self.limit
+        }
+
+
+class User(Base):
+    __tablename__ = "Users"
+    id = Column(Integer, primary_key=True)
+    username = Column(String)
+    registration_date = Column(DateTime)
+    subscription_id = Column(Integer, ForeignKey("SubscriptionTypes.id"))
+
+    user_token = relationship("UserToken", back_populates="user")
+    project = relationship("Project", back_populates="user")
+    user_llm = relationship("UserLLM", back_populates="user")
+    conversation = relationship("Conversation", back_populates="user")
+    subscription_type = relationship("SubscriptionType", back_populates="user")
+
+    def __init__(self, user_id: int, username, subscription_type_id: str, **kw: Any):
+        super().__init__(**kw)
+        self.id = user_id
+        self.username = username
+        self.registration_date = datetime.datetime.now()
+        self.subscription_id = subscription_type_id
+
+    def get_simple_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "username": self.username,
+            "registration_date": self.registration_date
+        }
+
+
+class UserLLM(Base):
+    __tablename__ = "UserLLMs"
     id = Column(Integer, Identity(start=1, always=True), primary_key=True)
     user_id = Column(Integer, ForeignKey("Users.id"))
+    base_model_id = Column(Integer, ForeignKey("LLMs.id"))
     name = Column(String)
-    llm_id = Column(Integer, ForeignKey("UserLLMs.id"))
+    system_name = Column(String)
+    prompt = Column(Text)
+    is_default = Column(Boolean)
 
-    user = relationship("User", back_populates="conversation")
-    user_llm = relationship("UserLLM", back_populates="conversation")
-    message = relationship("Message", back_populates="conversation")
+    llm = relationship("LLM", back_populates="user_llm")
+    user = relationship("User", back_populates="user_llm")
+    conversation = relationship("Conversation", back_populates="user_llm")
 
-    def get_info(self):
-        result = {
+    def __init__(self, user_id: int, name: str, system_name: str,
+                 base_model_id: int, prompt: str, is_default: bool, **kw: Any):
+        super().__init__(**kw)
+        self.user_id = user_id
+        self.base_model_id = base_model_id
+        self.name = name
+        self.system_name = system_name
+        self.prompt = prompt
+        self.is_default = is_default
+
+    #     def add_user_model(self, user_id: int, name: str, system_name: str, base_model_id: int, prompt: str):
+    #         pass
+
+    def get_simple_dict(self) -> dict:
+        return {
             "id": self.id,
-            "name": self.name
+            "name": self.name,
+            "system_name": self.system_name,
+            "prompt": self.prompt,
+            "is_default": self.is_default
         }
 
-        with sessionmaker(bind=engine) as session:
-            user = session.get(User, self.user_id)
-            user_llm = session.get(UserLLM, self.llm_id)
 
-        if user is not None:
-            result["user_id"] = user.get_info()
-        if user_llm is not None:
-            result["llm_id"] = user_llm.get_info()
-
-        return result
-
-
-class Message(Base):
-    __tablename__ = "Messages"
+class UserToken(Base):
+    __tablename__ = "UserToken"
     id = Column(Integer, Identity(start=1, always=True), primary_key=True)
-    author = Column(Enum(AuthorEnum))
-    text = Column(Text)
-    time = Column(DateTime)
-    conversation_id = Column(Integer, ForeignKey("Conversations.id"))
+    user_id = Column(Integer, ForeignKey("Users.id"))
+    count = Column(Integer)
+    last_update = Column(DateTime)
 
-    conversation = relationship("Conversation", back_populates="message")
+    user = relationship("User", back_populates="user_token")
 
-    def get_info(self):
-        result = {
+    def __init__(self, user_id: int, count: int, **kw: Any):
+        super().__init__(**kw)
+        self.user_id = user_id
+        self.count = count
+        self.last_update = datetime.date.today()
+
+    def get_simple_dict(self) -> dict:
+        return {
             "id": self.id,
-            "author": self.author,
-            "text": self.text,
-            "time": self.time
+            "count": self.count,
+            "last_update": self.last_update
         }
-
-        with sessionmaker(bind=engine) as session:
-            conversation = session.get(Conversation, self.conversation_id)
-        if conversation is not None:
-            result["conversation_id"] = conversation.get_info()
-
-
-class LLM(Base):
-    __tablename__ = "LLMs"
-
-    id = Column(Integer, Identity(start=1, always=True), primary_key=True)
-    model = Column(Enum(ModelEnum))
-
-    user_llm = relationship("UserLLM", back_populates="llm")
-    project_llm = relationship("ProjectLLM", back_populates="llm")
-
-    def get_info(self):
-        result = {
-            "id": self.id,
-            "model": self.model
-        }
-        return result

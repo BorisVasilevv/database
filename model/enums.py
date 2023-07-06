@@ -15,8 +15,3 @@ class SubscriptionLevelEnum(enum.Enum):
     free = "standard"
     basic = "basic"
     advanced = "advanced"
-
-
-class AuthorEnum(enum.Enum):
-    user = "user"
-    AI = "AI"
