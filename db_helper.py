@@ -186,9 +186,12 @@ class DBHelper:
     # Не тестил
     def add_message(self, convo_id: int, question: str, answer: str) -> None:
         message = Message(conversation_id=convo_id, question=question, answer=answer)
+        user_id: int
         with self.__create_session() as session:
             session.add(message)
+            user_id = message.conversation.user.id
             session.commit()
+        self.__user_asked(user_id)
 
     # Не тестил
     def add_project(self, user_id: int, name: str, mimetype: str, file: bytes) -> None:
@@ -243,7 +246,7 @@ class DBHelper:
                 return user_token.count > 0
 
     # Не тестил
-    def user_ask(self, user_id: int) -> None:
+    def __user_asked(self, user_id: int) -> None:
         with self.__create_session() as session:
             user = session.get(User, user_id)
             user_token = user.user_token[0]
