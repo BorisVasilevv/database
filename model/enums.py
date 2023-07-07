@@ -12,6 +12,6 @@ class RoleEnum(enum.Enum):
 
 
 class SubscriptionLevelEnum(enum.Enum):
-    free = "standard"
+    free = "free"
     basic = "basic"
     advanced = "advanced"

@@ -93,8 +93,10 @@ class Message(Base):
     def get_simple_dict(self) -> dict:
         return {
             "id": self.id,
-            "question": self.question,
-            "answer": self.answer,
+            "content": {
+                "question": self.question,
+                "answer": self.answer
+            },
             "time": self.time
         }
 
@@ -123,9 +125,9 @@ class Project(Base):
     def get_simple_dict(self) -> dict:
         return {
             "id": self.id,
+            "user_id": self.user_id,
             "name": self.name,
-            "mimetype": self.mimetype,
-            "file": self.file
+            "mimetype": self.mimetype
         }
 
 
@@ -196,7 +198,7 @@ class User(Base):
     conversation = relationship("Conversation", back_populates="user")
     subscription_type = relationship("SubscriptionType", back_populates="user")
 
-    def __init__(self, user_id: int, username, subscription_type_id: str, **kw: Any):
+    def __init__(self, user_id: int, username, subscription_type_id: int, **kw: Any):
         super().__init__(**kw)
         self.id = user_id
         self.username = username
@@ -241,7 +243,14 @@ class UserLLM(Base):
     def get_simple_dict(self) -> dict:
         return {
             "id": self.id,
+            "name": self.name
+        }
+
+    def get_full_dict(self) -> dict:
+        return {
+            "id": self.id,
             "name": self.name,
+            "user_id":self.user_id,
             "system_name": self.system_name,
             "prompt": self.prompt,
             "is_default": self.is_default
@@ -265,7 +274,6 @@ class UserToken(Base):
 
     def get_simple_dict(self) -> dict:
         return {
-            "id": self.id,
             "count": self.count,
             "last_update": self.last_update
         }
