@@ -142,7 +142,11 @@ class DBHelper:
 
     # Не тестил
     def get_count_conversation(self, user_id: int) -> int:
-        pass
+        result: int
+        with self.__create_session() as session:
+            conversations = session.query(Conversation).filter(Conversation.user_id == user_id).all()
+            result = conversations.__len__()
+        return result
 
     def add_user(self, user_id: int, username: str):
         limit: int
