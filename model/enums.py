@@ -2,7 +2,7 @@ import enum
 
 
 class ModelEnum(enum.Enum):
-    GPT = "gpt"
+    GPT = "GPT"
     Bing = "Bing"
 
 

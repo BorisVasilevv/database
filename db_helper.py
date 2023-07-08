@@ -1,5 +1,7 @@
 import datetime
 import os.path
+from sqlalchemy import and_
+
 import sqlalchemy
 from model.enums import *
 from sqlalchemy.orm import sessionmaker
@@ -20,7 +22,9 @@ class DBHelper:
                 free_type = SubscriptionType(name=SubscriptionLevelEnum.free, limit=10)
                 basic_type = SubscriptionType(name=SubscriptionLevelEnum.basic, limit=25)
                 advanced_type = SubscriptionType(name=SubscriptionLevelEnum.advanced, limit=50)
-                session.add_all([free_type, basic_type, advanced_type])
+                gpt = LLM(ModelEnum.GPT)
+                bing = LLM(ModelEnum.Bing)
+                session.add_all([free_type, basic_type, advanced_type, gpt, bing])
                 session.commit()
 
     def __create_session(self):
@@ -58,7 +62,6 @@ class DBHelper:
                 conversations.append(conversation_info)
         return conversations
 
-    # Не тестил
     def get_user_models(self, user_id: int, offset: int, limit: int) -> list[dict]:
         models_info = []
         try:
@@ -74,7 +77,6 @@ class DBHelper:
         finally:
             return models_info
 
-    # Не тестил
     def get_user_projects(self, user_id: int, offset: int, limit: int) -> list[dict]:
         projects = []
         try:
@@ -82,6 +84,8 @@ class DBHelper:
                 projects_list = session.query(Project).filter(Project.user_id == user_id).offset(offset).limit(limit).all()
                 for p in projects_list:
                     project_info = p.get_simple_dict()
+                    if p.project_llm is None:
+                        continue
                     project_info["model"] = p.project_llm.get_simple_dict()
                     project_info["model"]["system_name"] = p.name
                     projects.append(project_info)
@@ -91,7 +95,6 @@ class DBHelper:
         finally:
             return projects
 
-    # Не тестил
     def get_user_data_files(self, project_id: int) -> list:
         datas = []
         with self.__create_session() as session:
@@ -100,8 +103,7 @@ class DBHelper:
             datas.append(rd.data)
         return datas
 
-    # Не тестил
-    def get_user_msg_history(self, conversation_id: int, limit: int, offset: int) -> list[dict]:
+    def get_user_msg_history(self, conversation_id: int, offset: int, limit: int) -> list[dict]:
         messages_info = []
         try:
             with self.__create_session() as session:
@@ -116,7 +118,6 @@ class DBHelper:
         finally:
             return messages_info
 
-    # Не тестил
     def get_project_count(self, user_id: int) -> int:
         result: int
         with self.__create_session() as session:
@@ -124,7 +125,6 @@ class DBHelper:
             result = projects_list.__len__()
         return result
 
-    # Не тестил
     def get_message_count(self, convo_id: int) -> int:
         result: int
         with self.__create_session() as session:
@@ -132,7 +132,6 @@ class DBHelper:
             result = messages.__len__()
         return result
 
-    # Не тестил
     def get_model_count(self, user_id: int) -> int:
         result: int
         with self.__create_session() as session:
@@ -140,7 +139,6 @@ class DBHelper:
             result = user_llm_list.__len__()
         return result
 
-    # Не тестил
     def get_count_conversation(self, user_id: int) -> int:
         result: int
         with self.__create_session() as session:
@@ -148,9 +146,12 @@ class DBHelper:
             result = conversations.__len__()
         return result
 
-    def add_user(self, user_id: int, username: str):
+    def add_user(self, user_id: int, username: str) -> None:
         limit: int
         with self.__create_session() as session:
+            test_user = session.get(User, user_id)
+            if test_user is not None:
+                return
             free_subscription = session.query(SubscriptionType)\
                 .filter(SubscriptionType.name == SubscriptionLevelEnum.free).first()
 
@@ -176,43 +177,45 @@ class DBHelper:
             session.add(model)
             session.commit()
 
-    # Не тестил
     def add_chat(self, user_id: int, name: str, user_model_id: int) -> None:
         chat = Conversation(user_id=user_id, name=name, llm_id=user_model_id)
         with self.__create_session() as session:
             session.add(chat)
             session.commit()
 
-    # Не тестил
     def add_message(self, convo_id: int, question: str, answer: str) -> None:
         message = Message(conversation_id=convo_id, question=question, answer=answer)
         user_id: int
         with self.__create_session() as session:
             session.add(message)
-            user_id = message.conversation.user.id
+            conversation = session.get(Conversation, convo_id)
+            user_id = conversation.user.id
             session.commit()
         self.__user_asked(user_id)
 
-    # Не тестил
-    def add_project(self, user_id: int, name: str, mimetype: str, file: bytes) -> None:
-        project = Project(user_id=user_id, name=name, mimetype=mimetype, file=file)
+    def add_project(self, user_id: int, name: str, model_id: int, mimetype: str, file: bytes) -> None:
+        project = Project(user_id=user_id, name=name, model_id= model_id, mimetype=mimetype, file=file)
         with self.__create_session() as session:
             session.add(project)
             session.commit()
 
-    # Не тестил
-    def update_default_model(self, user_id: int, user_model_id: int) -> None:
+    def add_result_data(self, project_id: int, data:str) -> None:
+        result_data = ResultData(project_id=project_id, data=data)
+        with self.__create_session() as session:
+            session.add(result_data)
+            session.commit()
+
+    def update_default_model(self, user_id: int, new_default_model_id: int) -> None:
         with self.__create_session() as session:
             user_llms = session.query(UserLLM).filter(UserLLM.user_id == user_id).all()
-
-            if user_llms is not None and any(model.id == user_model_id for model in user_llms):
+            # Check what that user has user_llm with id = user_model_id
+            if user_llms is not None and any(model.id == new_default_model_id for model in user_llms):
                 for model in user_llms:
                     model.is_default = False
-                    if model.id == user_model_id:
+                    if model.id == new_default_model_id:
                         model.is_default = True
                 session.commit()
 
-    # Не тестил
     def update_plan(self, user_id: int, plan: SubscriptionLevelEnum) -> None:
         with self.__create_session() as session:
             user = session.get(User, user_id)
@@ -221,7 +224,6 @@ class DBHelper:
                 user.subscription_id = subscription.id
                 session.commit()
 
-    # Не тестил
     def update_limits(self, plan: SubscriptionLevelEnum, new_limit: int) -> None:
         with self.__create_session() as session:
             subscription = session.query(SubscriptionType).filter(SubscriptionType.name == plan).first()
@@ -229,15 +231,11 @@ class DBHelper:
                 subscription.limit = new_limit
                 session.commit()
 
-    # Не тестил
-    # смотрит на last_update, если оно
-    # не сегодня добавляет количество токенов, в зависимости от подписки,
-    # после этого смотрит сколько токенов, если не 0 вернёт True
     def can_user_ask_question(self, user_id: int) -> bool:
         with self.__create_session() as session:
             user = session.get(User, user_id)
             user_token = user.user_token[0]
-            if user_token.last_update.day != datetime.datetime.now().date().day:
+            if user_token.last_update.date() < datetime.date.today():
                 subscription = user.subscription_type
                 user_token.count = subscription.limit
                 session.commit()
@@ -245,11 +243,57 @@ class DBHelper:
             else:
                 return user_token.count > 0
 
-    # Не тестил
     def __user_asked(self, user_id: int) -> None:
         with self.__create_session() as session:
             user = session.get(User, user_id)
             user_token = user.user_token[0]
             user_token.count -= 1
+            user_token.last_update = datetime.date.today()
             session.commit()
 
+    def get_user_count_for_statistic(self) -> dict[str, int]:
+        count_free, count_basic, count_advanced, count_all = 0, 0, 0, 0
+        with self.__create_session() as session:
+            users = session.query(User).all()
+            for some_user in users:
+                count_all += 1
+                match some_user.subscription_type.name:
+                    case SubscriptionLevelEnum.free:
+                        count_free += 1
+                    case SubscriptionLevelEnum.basic:
+                        count_basic += 1
+                    case SubscriptionLevelEnum.advanced:
+                        count_advanced += 1
+        return {
+            "free": count_free,
+            "basic": count_basic,
+            "advanced": count_advanced,
+            "all": count_all
+        }
+
+    def get_interactive_count(self, date_start: datetime.datetime, date_end: datetime.datetime) -> int:
+        result: int
+        with self.__create_session() as session:
+            messages = session.query(Message).filter(and_(date_start <= Message.time, Message.time <= date_end)).all()
+            if messages is not None:
+                result = messages.__len__()
+            else:
+                result = 0
+        return result
+
+    def get_new_user_count(self, date_start: datetime.datetime, date_end: datetime.datetime) -> int:
+        result: int
+        with self.__create_session() as session:
+            users = session.query(User).filter(and_(date_start <= User.registration_date, User.registration_date <= date_end)).all()
+            if users is not None:
+                result = users.__len__()
+            else:
+                result = 0
+        return result
+
+    def get_user_subscribe_level(self, user_id: int) -> SubscriptionLevelEnum | None:
+        with self.__create_session() as session:
+            user = session.get(User, user_id)
+            if user is not None:
+                return user.subscription_type.name
+        return None

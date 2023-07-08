@@ -66,6 +66,10 @@ class LLM(Base):
     user_llm = relationship("UserLLM", back_populates="llm")
     project_llm = relationship("ProjectLLM", back_populates="llm")
 
+    def __init__(self, model: ModelEnum, **kw: Any):
+        super().__init__(**kw)
+        self.model = model
+
     def get_simple_dict(self) -> dict:
         return {
             "id": self.id,
@@ -115,12 +119,13 @@ class Project(Base):
     result_data = relationship("ResultData", back_populates="project")
     project_llm = relationship("ProjectLLM", back_populates="project")
 
-    def __init__(self, user_id: int,  name: str, mimetype: str, file: bytes, **kw: Any):
+    def __init__(self, user_id: int, model_id: int, name: str, mimetype: str, file: bytes, **kw: Any):
         super().__init__(**kw)
         self.user_id = user_id
         self.name = name
         self.mimetype = mimetype
         self.file = file
+        self.model_id = model_id
 
     def get_simple_dict(self) -> dict:
         return {
@@ -156,6 +161,11 @@ class ResultData(Base):
     data = Column(Text)
 
     project = relationship("Project", back_populates="result_data")
+
+    def __init__(self, project_id: int, data: str, **kw: Any):
+        super().__init__(**kw)
+        self.project_id = project_id
+        self.data = data
 
     def get_simple_dict(self) -> dict:
         return {
