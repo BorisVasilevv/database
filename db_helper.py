@@ -300,3 +300,5 @@ class DBHelper:
             if user is not None:
                 return user.subscription_type.name
         return None
+
+
