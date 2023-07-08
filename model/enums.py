@@ -11,7 +11,8 @@ class RoleEnum(enum.Enum):
     user = "user"
 
 
-
+class SomeEnum(enum.Enum):
+    pass
 
 
 class SubscriptionLevelEnum(enum.Enum):
