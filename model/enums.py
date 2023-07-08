@@ -14,6 +14,10 @@ class TestEnum(enum.Enum):
     pass
 
 
+class SomeEnum(enum.Enum):
+    pass
+
+
 class SubscriptionLevelEnum(enum.Enum):
     free = "free"
     basic = "basic"
