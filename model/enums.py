@@ -2,8 +2,8 @@ import enum
 
 
 class ModelEnum(enum.Enum):
-    GPT = "GPT"
-    Bing = "Bing"
+    ChatGPT = "chinchilla"
+    Claude = "a2"
 
 
 class RoleEnum(enum.Enum):

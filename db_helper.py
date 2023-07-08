@@ -13,18 +13,18 @@ class DBHelper:
     __engine = None
 
     def __init__(self):
-        self.__engine = sqlalchemy.create_engine('sqlite:///multigpt.db', echo=True)
+        self.__engine = sqlalchemy.create_engine('sqlite:///model/multigpt.db', echo=True)
 
     def create_db(self):
-        if not os.path.exists("multigpt.db"):
+        if not os.path.exists("model/multigpt.db"):
             Base.create_db(self.__engine)
             with self.__create_session() as session:
-                free_type = SubscriptionType(name=SubscriptionLevelEnum.free, limit=10)
-                basic_type = SubscriptionType(name=SubscriptionLevelEnum.basic, limit=25)
-                advanced_type = SubscriptionType(name=SubscriptionLevelEnum.advanced, limit=50)
-                gpt = LLM(ModelEnum.GPT)
-                bing = LLM(ModelEnum.Bing)
-                session.add_all([free_type, basic_type, advanced_type, gpt, bing])
+                free_type = SubscriptionType(name=SubscriptionLevelEnum.free, limit=30)
+                basic_type = SubscriptionType(name=SubscriptionLevelEnum.basic, limit=1000000)
+                advanced_type = SubscriptionType(name=SubscriptionLevelEnum.advanced, limit=10000000)
+                gpt = LLM(ModelEnum.ChatGPT)
+                claude = LLM(ModelEnum.Claude)
+                session.add_all([free_type, basic_type, advanced_type, gpt, claude])
                 session.commit()
 
     def __create_session(self):
@@ -39,14 +39,17 @@ class DBHelper:
             user_info["token"] = user.user_token[0].get_simple_dict()
 
             all_llms = user.user_llm
-            for llm in all_llms:
-                if llm.is_default:
-                    default_llm = llm
-                    break
-            if default_llm is None:
+            if all_llms is None or all_llms.__len__() == 0:
                 user_info["default_model"] = None
             else:
-                user_info["default_model"] = default_llm.get_simple_dict()
+                for llm in all_llms:
+                    if llm.is_default:
+                        default_llm = llm
+                        break
+                if default_llm is None:
+                    user_info["default_model"] = None
+                else:
+                    user_info["default_model"] = default_llm.get_simple_dict()
         return user_info
 
     def get_user_conversations(self, user_id: int) -> list[dict]:

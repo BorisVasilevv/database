@@ -4,7 +4,8 @@ from db_helper import DBHelper
 
 db_helper = DBHelper()
 db_helper.create_db()
-db_helper.update_limits(SubscriptionLevelEnum.free, 11)
+db_helper.add_user(1, "vrvrv")
+print(db_helper.get_user(1))
 # print(db_helper.get_new_user_count(datetime.datetime(2000, 2, 11), datetime.datetime.now()))
 #
 #
