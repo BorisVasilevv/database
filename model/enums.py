@@ -9,7 +9,7 @@ class ModelEnum(enum.Enum):
 class RoleEnum(enum.Enum):
     admin = "admin"
     user = "user"
-    
+
 
 class SubscriptionLevelEnum(enum.Enum):
     free = "free"

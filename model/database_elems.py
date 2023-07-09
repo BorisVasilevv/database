@@ -26,6 +26,7 @@ class Conversation(Base):
     user = relationship("User", back_populates="conversation")
     user_llm = relationship("UserLLM", back_populates="conversation")
     message = relationship("Message", back_populates="conversation")
+    curr_convo = relationship("CurrConvo", back_populates="conversation")
 
     def __init__(self,  user_id: int, name: str, llm_id: int, **kw: Any):
         super().__init__(**kw)
@@ -48,6 +49,12 @@ class FilePart(Base):
     is_used = Column(Boolean)
 
     project = relationship("Project", back_populates="file_part")
+
+    def __init__(self, part: str, project_id: int, **kw: Any):
+        super().__init__(**kw)
+        self.part = part
+        self.is_used = False
+        self.project_id = project_id
 
     def get_simple_dict(self) -> dict:
         return {
@@ -146,6 +153,12 @@ class ProjectLLM(Base):
     project = relationship("Project", back_populates="project_llm")
     llm = relationship("LLM", back_populates="project_llm")
 
+    def __init__(self, model_id: int, system_name: str, prompt: str, **kw: Any):
+        super().__init__(**kw)
+        self.model_id = model_id
+        self.system_name = system_name
+        self.prompt = prompt
+
     def get_simple_dict(self) -> dict:
         return {
             "id": self.id,
@@ -207,6 +220,7 @@ class User(Base):
     user_llm = relationship("UserLLM", back_populates="user")
     conversation = relationship("Conversation", back_populates="user")
     subscription_type = relationship("SubscriptionType", back_populates="user")
+    curr_convo = relationship("CurrConvo", back_populates="user")
 
     def __init__(self, user_id: int, username, subscription_type_id: int, **kw: Any):
         super().__init__(**kw)
@@ -247,9 +261,6 @@ class UserLLM(Base):
         self.prompt = prompt
         self.is_default = is_default
 
-    #     def add_user_model(self, user_id: int, name: str, system_name: str, base_model_id: int, prompt: str):
-    #         pass
-
     def get_simple_dict(self) -> dict:
         return {
             "id": self.id,
@@ -287,3 +298,19 @@ class UserToken(Base):
             "count": self.count,
             "last_update": self.last_update
         }
+
+
+class CurrConvo(Base):
+    __tablename__ = "CurrConvo"
+    id = Column(Integer, Identity(start=1, always=True), primary_key=True)
+    user_id = Column(Integer, ForeignKey("Users.id"))
+    convo_id = Column(Integer, ForeignKey("Conversations.id"))
+
+    user = relationship("User", back_populates="curr_convo")
+    conversation = relationship("Conversation", back_populates="curr_convo")
+
+    def __init__(self,  user_id: int,  convo_id: int, **kw: Any):
+        super().__init__(**kw)
+        self.user_id = user_id
+        self.convo_id = convo_id
+

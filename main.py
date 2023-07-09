@@ -4,18 +4,20 @@ from db_helper import DBHelper
 
 db_helper = DBHelper()
 db_helper.create_db()
-db_helper.add_user(1, "vrvrv")
-print(db_helper.get_user(1))
-# print(db_helper.get_new_user_count(datetime.datetime(2000, 2, 11), datetime.datetime.now()))
-#
-#
-#     if db_helper.can_user_ask_question(9):
-#         db_helper.add_message(1, "dfbtdb", "rbtbgf")
-#
-#
-# amount = db_helper.get_message_count(1)
-# c = 0
-# while c < amount:
-#     print(db_helper.get_user_msg_history(1, c, 2))
-#     print("\n\n\n")
-#     c += 2
+file = open("r.txt", "rb")
+# print(db_helper.get_project_count(1))
+print(db_helper.get_project_name(1))
+# print(db_helper.get_user_projects(1, 0, 20))
+
+
+
+# db_helper.add_project(1,"crecerc","cwcre",1, None, file.read(),"evrtvrt")
+
+# a = ModelEnum.Claude
+# db_helper.add_project(1, "vgrev00,0,","vvfs",1,"vrvr", file.read(), "esgrs")
+# db_helper.update_limits(SubscriptionLevelEnum.free.value, 35)
+# db_helper.add_user_model(1, "vvrvv", "rberbrv", 1, "grwbregergre")
+# db_helper.add_chat(1, "vevev", 1)
+# for i in range(15):
+#     db_helper.add_message(1, "vrvrv", "erwverv")
+# print(db_helper.amount_of_interaction())
